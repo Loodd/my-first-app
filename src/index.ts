@@ -1,15 +1,13 @@
 import { Probot } from "probot";
+import MD5 from "crypto-js/md5";
 
 export = (app: Probot) => {
   app.on("issues.opened", async (context) => {
+
     const issueComment = context.issue({
-      body: "Thanks for opening this issue!",
+      body: `Thanks for opening this issue! ${context.id} ${MD5(context.id)}`
     });
+
     await context.octokit.issues.createComment(issueComment);
   });
-  // For more information on building apps:
-  // https://probot.github.io/docs/
-
-  // To get your app running against GitHub, see:
-  // https://probot.github.io/docs/development/
 };
