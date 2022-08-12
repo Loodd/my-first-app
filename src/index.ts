@@ -5,7 +5,7 @@ export = (app: Probot) => {
   app.on("issues.opened", async (context) => {
 
     const issueComment = context.issue({
-      body: `Thanks for opening this issue! ${context.id} ${MD5(context.id)}`
+      body: `Thanks for opening this issue! ${JSON.stringify(context)}`
     });
 
     await context.octokit.issues.createComment(issueComment);
