@@ -1,5 +1,4 @@
 import { Probot } from "probot";
-import MD5 from "crypto-js/md5";
 
 export = (app: Probot) => {
   app.on("issues.opened", async (context) => {
