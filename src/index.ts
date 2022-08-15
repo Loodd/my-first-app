@@ -1,22 +1,5 @@
 import { Probot } from "probot";
 
-class Command {
-  constructor (private name: any, private callback: any) {
-    this.name = name
-    this.callback = callback
-  }
-
-  listener (context: any) {
-    const {comment, issue, pull_request: pr} = context.payload
-
-    const command = (comment || issue || pr).body.match(this.matcher)
-
-    if (command && this.name === command[1]) {
-      return this.callback(context, {name: command[1], arguments: command[2]})
-    }
-  }
-}
-
 export = (app: Probot) => {
   app.on("issues.opened", async (context) => {
 
@@ -28,6 +11,12 @@ export = (app: Probot) => {
   });
 
   app.on('issue_comment.created', async (context) => {
+    const issueComment = context.issue({
+      body: `Addres: ${JSON.stringify(context.payload)}`
+    });
+
+    await context.octokit.issues.createComment(issueComment);
+
     var matcher = /^\/([\w]+)\b *(.*)?$/m;
 
     var message = context.payload.comment;
