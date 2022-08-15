@@ -1,6 +1,5 @@
 import { Probot } from "probot";
 
-
 class Command {
   constructor (private name: any, private callback: any) {
     this.name = name
