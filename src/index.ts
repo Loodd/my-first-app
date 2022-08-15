@@ -6,10 +6,6 @@ class Command {
     this.callback = callback
   }
 
-  get matcher () {
-    return /^\/([\w]+)\b *(.*)?$/m
-  }
-
   listener (context: any) {
     const {comment, issue, pull_request: pr} = context.payload
 
@@ -31,12 +27,19 @@ export = (app: Probot) => {
     await context.octokit.issues.createComment(issueComment);
   });
 
-  const command = new Command('label', (context: any, command: any) => {
-    const labels = command.arguments.split(/, */);
-    return context.github.issues.addLabels(context.issue({labels}));
-  })
+  app.on('issue_comment.created', async (context) => {
+    var matcher = /^\/([\w]+)\b *(.*)?$/m;
 
-  app.on('issue_comment.created', command.listener.bind(command));
-  app.on('issues.opened', command.listener.bind(command));
-  app.on('pull_request.opened', command.listener.bind(command));
+    var message = context.payload.comment;
+
+    const command = message.body.match(matcher);
+
+    if (command != null && command[1] == "address") {
+      const issueComment = context.issue({
+        body: `Addres: ${JSON.stringify(command)}`
+      });
+  
+      await context.octokit.issues.createComment(issueComment);
+    }
+  });
 };
