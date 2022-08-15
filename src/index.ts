@@ -11,13 +11,9 @@ export = (app: Probot) => {
     await context.octokit.issues.createComment(issueComment);
   });
 
-  commands(app, 'address', async (context: any, command: any) => {
-    const labels = command.arguments;
-    
-    const issueComment = context.issue({
-      body: `Test: ${JSON.stringify(labels)}`
-    });
-
-    await context.octokit.issues.createComment(issueComment);
+  // Type `/label foo, bar` in a comment box for an Issue or Pull Request
+  commands(app, 'label', (context: any, command: any) => {
+    const labels = command.arguments.split(/, */);
+    return context.github.issues.addLabels(context.issue({labels}));
   });
 };
