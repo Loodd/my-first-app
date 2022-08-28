@@ -29,6 +29,21 @@ export = (app: Probot) => {
     await context.octokit.issues.createComment(issueComment);
   });
 
+  app.on(["pull_request.opened", "pull_request.edited"], async (context) => {
+    // var comments = await context.octokit.issues.listComments({
+    //   issue_number: context.payload.number,
+    //   owner: context.payload.repository.owner.login,
+    //   repo: context.payload.repository.name
+    // });
+
+    // await context.octokit.issues.updateComment({
+    //   comment_id: 1,
+    //   body: `ciao1`,
+    //   repo: context.payload.repository.name,
+    //   owner: context.payload.repository.owner.login
+    // });
+  })
+
   commands(app, 'claim', async (context: any, command: any) => {
     if (context.payload.comment.user.id !== context.payload.issue.user.id) {
       await context.octokit.issues.createComment(context.issue({
@@ -59,7 +74,7 @@ export = (app: Probot) => {
 		) as OpenSourceTokenAbi;
 
     var query = `{
-      repository(name: "${context.payload.repository.name}", owner: "${context.payload.organization.login}") {
+      repository(name: "${context.payload.repository.name}", owner: "${context.payload.repository.owner.login}") {
         pullRequest(number: ${context.payload.issue.number}) {
           closingIssuesReferences(first: 100) {
             nodes {
@@ -78,7 +93,7 @@ export = (app: Probot) => {
     
     for (var node of data.repository.pullRequest.closingIssuesReferences.nodes) {
       var q = `{
-        repository(name: "${context.payload.repository.name}", owner: "${context.payload.organization.login}") {
+        repository(name: "${context.payload.repository.name}", owner: "${context.payload.repository.owner.login}") {
           issue(number: ${node.number}) {
             timelineItems(itemTypes: CLOSED_EVENT, last: 1) {
               nodes {
@@ -97,8 +112,8 @@ export = (app: Probot) => {
 
       var d = await context.octokit.graphql(q);
 
-      if (d.repository.issue.timelineItems.nodes[0].closer.number !== context.payload.issue.number)
-        return;
+      if (d.repository.issue.timelineItems.nodes[0].closer?.number !== context.payload.issue.number)
+        continue;
 
       var fundingPoolId = createFundingPoolId(context.payload.repository.id, node.number);
 
