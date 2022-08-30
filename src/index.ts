@@ -123,7 +123,7 @@ export = (app: Probot) => {
       return;
 
     await context.octokit.issues.createComment(context.issue({
-      body: `@${context.payload.pull_request.user.login}\nThe pull request was approved, now you can claim this pull request with the command _/claim <\\<your address\\>>_`
+      body: `@${context.payload.pull_request.user.login}\nThe pull request was approved, you can now claim this pull request with the command _/claim <\\<your address\\>>_`
     }));
   });
 
