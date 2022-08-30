@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "graphql": "^16.6.0",
-    "probot": "^12.2.4",
+    "probot": "^12.2.7",
     "probot-commands": "^1.1.0"
   },
   "devDependencies": {

@@ -118,6 +118,15 @@ export = (app: Probot) => {
     });
   });
 
+  app.on("pull_request.closed", async (context) => {
+    if (!context.payload.pull_request.merged)
+      return;
+
+    await context.octokit.issues.createComment(context.issue({
+      body: `@${context.payload.pull_request.user.login}\nThe pull request was approved, now you can claim this pull request with the command _/claim <\\<your address\\>>_`
+    }));
+  });
+
   commands(app, 'claim', async (context: any, command: any) => {
     var owner = "0xD7C91D12c9Ace617eC2F2B20803dB8E166585baE";
 
