@@ -5,6 +5,9 @@ import { OpenSourceTokenAbi } from "./contracts/OpenSourceTokenAbi";
 import abi = require('../abis/OpenSourceToken.abi.json');
 const commands: any = require('probot-commands')
 
+var contractAddress = "0xDF035975810b1cB4d0f5837b08541A3a143D819A";
+var ownerAddress = "0xD7C91D12c9Ace617eC2F2B20803dB8E166585baE";
+
 var createFundingPoolId = (repositoryId: number, issueNumber: number) => {
   return MD5(JSON.stringify({
     context: 'GitHub',
@@ -65,12 +68,10 @@ var createBodyFromIssuesMapping = async (context: any, payload: any) => {
 }
 
 var createSvg = (fundingPoolId: string, url: string) => {
-  var owner = "0xD7C91D12c9Ace617eC2F2B20803dB8E166585baE";
-
   var urlSvg = "http://80.180.103.134:3001";
-  var urlFunder = `http://80.180.103.134:4200/web3/funding/${owner}/${fundingPoolId}?ref=${url}`;
+  var urlFunder = `http://80.180.103.134:4200/web3/funding/${ownerAddress}/${fundingPoolId}?ref=${url}`;
 
-  return `[![alt text](${urlSvg}/?owner=${owner}&fundingPoolId=${fundingPoolId})](${urlFunder})`;
+  return `[![alt text](${urlSvg}/?owner=${ownerAddress}&fundingPoolId=${fundingPoolId})](${urlFunder})`;
 }
 
 export = (app: Probot) => {
@@ -96,6 +97,9 @@ export = (app: Probot) => {
   });
 
   app.on("pull_request.edited", async (context) => {
+    if (context.payload.pull_request.merged_at !== null)
+      return;
+
     var body = await createBodyFromIssuesMapping(context, context.payload.pull_request);
 
     const app = await context.octokit.apps.getAuthenticated();
@@ -128,8 +132,6 @@ export = (app: Probot) => {
   });
 
   commands(app, 'claim', async (context: any, command: any) => {
-    var owner = "0xD7C91D12c9Ace617eC2F2B20803dB8E166585baE";
-
     if (context.payload.comment.user.id !== context.payload.issue.user.id) {
       await context.octokit.issues.createComment(context.issue({
         body: `You can't claim because you are not the owner of this pull request.`
@@ -151,7 +153,7 @@ export = (app: Probot) => {
     const signer = new ethers.Wallet("0x6d6352f3144cc7a9ba24d6f7b603baf05cc556d5bb2de494c39ed473db50f074", provider);
 
 		var contract = new Contract(
-      "0x745c8671B6A6bDE6FB74Ee04D93bBB643E6cd4B5",
+      contractAddress,
       abi,
       signer
 		) as OpenSourceTokenAbi;
@@ -184,7 +186,7 @@ export = (app: Probot) => {
       if (d.repository.issue.timelineItems.nodes[0].closer?.number !== context.payload.issue.number)
         continue;
 
-      issue.balance = await contract.balanceOfFund(owner, issue.fundingPoolId);
+      issue.balance = await contract.balanceOfFund(ownerAddress, issue.fundingPoolId);
 
       let changeTx = await contract.approveFund(issue.fundingPoolId, labels[0]);
       await changeTx.wait();
