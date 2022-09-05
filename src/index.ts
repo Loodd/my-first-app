@@ -5,7 +5,7 @@ import { OpenSourceTokenAbi } from "./contracts/OpenSourceTokenAbi";
 import abi = require('../abis/OpenSourceToken.abi.json');
 const commands: any = require('probot-commands')
 
-var contractAddress = "0xDF035975810b1cB4d0f5837b08541A3a143D819A";
+var contractAddress = "0x6562f89B1B5a8E3E1Ee7338e350D6D8aCdb1ED07";
 
 var createFundingPoolId = (repositoryId: number, issueNumber: number) => {
   return MD5(JSON.stringify({
@@ -154,7 +154,7 @@ export = (app: Probot) => {
 
 		const provider = new ethers.providers.JsonRpcProvider("https://zksync2-testnet.zksync.dev");
 
-    const signer = new ethers.Wallet("0x6d6352f3144cc7a9ba24d6f7b603baf05cc556d5bb2de494c39ed473db50f074", provider);
+    const signer = new ethers.Wallet("0x3f22cc3e1757c4a69de7e249c99e4217d4a0017157247a863cc7fb61e5a16ec8", provider);
 
 		var contract = new Contract(
       contractAddress,
@@ -194,7 +194,7 @@ export = (app: Probot) => {
 
       issue.balance = await contract.balanceOfFund(config.OwnerAddress, issue.fundingPoolId);
 
-      let changeTx = await contract.approveFund(issue.fundingPoolId, labels[0]);
+      let changeTx = await contract.approveFundFromBot(config.OwnerAddress, issue.fundingPoolId, labels[0]);
       await changeTx.wait();
     }
 
