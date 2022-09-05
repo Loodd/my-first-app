@@ -6,7 +6,6 @@ import abi = require('../abis/OpenSourceToken.abi.json');
 const commands: any = require('probot-commands')
 
 var contractAddress = "0xDF035975810b1cB4d0f5837b08541A3a143D819A";
-var ownerAddress = "0xD7C91D12c9Ace617eC2F2B20803dB8E166585baE";
 
 var createFundingPoolId = (repositoryId: number, issueNumber: number) => {
   return MD5(JSON.stringify({
@@ -45,7 +44,7 @@ var createIssuesMapping = async (context: any, payload: any) => {
   return issuesMapping;
 }
 
-var createBodyFromIssuesMapping = async (context: any, payload: any) => {
+var createBodyFromIssuesMapping = async (context: any, payload: any, ownerAddress: string) => {
   var issuesMapping = await createIssuesMapping(context, payload);
 
   var body = `[//]: <> (%RECAP_COMMENT%)`;
@@ -60,14 +59,14 @@ var createBodyFromIssuesMapping = async (context: any, payload: any) => {
     body += "|";
     body += `#${issuesMapping.nodeNumber}`;
     body += "|";
-    body += createSvg(issuesMapping.fundingPoolId, payload.html_url);
+    body += createSvg(issuesMapping.fundingPoolId, payload.html_url, ownerAddress);
     body += "|";
   }
 
   return body;
 }
 
-var createSvg = (fundingPoolId: string, url: string) => {
+var createSvg = (fundingPoolId: string, url: string, ownerAddress: string) => {
   var urlSvg = "http://80.180.103.134:3001";
   var urlFunder = `http://80.180.103.134:4200/web3/funding/${ownerAddress}/${fundingPoolId}?ref=${url}`;
 
@@ -76,18 +75,21 @@ var createSvg = (fundingPoolId: string, url: string) => {
 
 export = (app: Probot) => {
   app.on("issues.opened", async (context) => {
-
     var fundingPoolId = createFundingPoolId(context.payload.repository.id, context.payload.issue.number);
 
+    var config = await context.config("probot.yaml") as any;
+
     const issueComment = context.issue({
-      body: createSvg(fundingPoolId, context.payload.issue.html_url)
+      body: createSvg(fundingPoolId, context.payload.issue.html_url, config.OwnerAddress)
     });
 
     await context.octokit.issues.createComment(issueComment);
   });
 
   app.on("pull_request.opened", async (context) => {
-    var body = await createBodyFromIssuesMapping(context, context.payload.pull_request);
+    var config = await context.config("probot.yaml") as any;
+
+    var body = await createBodyFromIssuesMapping(context, context.payload.pull_request, config.OwnerAddress);
 
     const issueComment = context.issue({
       body: body
@@ -100,7 +102,9 @@ export = (app: Probot) => {
     if (context.payload.pull_request.merged_at !== null)
       return;
 
-    var body = await createBodyFromIssuesMapping(context, context.payload.pull_request);
+    var config = await context.config("probot.yaml") as any;
+
+    var body = await createBodyFromIssuesMapping(context, context.payload.pull_request, config.OwnerAddress);
 
     const app = await context.octokit.apps.getAuthenticated();
 
@@ -162,6 +166,8 @@ export = (app: Probot) => {
 
     const labels = command.arguments.split(/, */);
 
+    var config = await context.config("probot.yaml") as any;
+
     for (var issue of issuesMapping) {
       var q = `{
         repository(name: "${context.payload.repository.name}", owner: "${context.payload.repository.owner.login}") {
@@ -186,7 +192,7 @@ export = (app: Probot) => {
       if (d.repository.issue.timelineItems.nodes[0].closer?.number !== context.payload.issue.number)
         continue;
 
-      issue.balance = await contract.balanceOfFund(ownerAddress, issue.fundingPoolId);
+      issue.balance = await contract.balanceOfFund(config.OwnerAddress, issue.fundingPoolId);
 
       let changeTx = await contract.approveFund(issue.fundingPoolId, labels[0]);
       await changeTx.wait();
