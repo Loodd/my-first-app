@@ -73,7 +73,69 @@ var createSvg = (fundingPoolId: string, url: string, ownerAddress: string) => {
   return `[![alt text](${urlSvg}/?owner=${ownerAddress}&fundingPoolId=${fundingPoolId})](${urlFunder})`;
 }
 
-export = (app: Probot) => {
+export = (app: Probot, { getRouter }: any) => {
+  const router = getRouter("/my-app");
+
+  router.use(require("express").static("public"));
+
+  router.get("/hello-world", async (_: any, res: any, _next: any) => {
+    var octokit = await app.auth(29273534);
+    var ciao = await octokit.request('GET /installation/repositories', {});
+
+    console.log(JSON.stringify(ciao.data.repositories[0]));
+
+    var owner = ciao.data.repositories[0].owner.login;
+    var repo = ciao.data.repositories[0].name;
+    var base = ciao.data.repositories[0].default_branch;
+    var title = "title";
+    var body = "body";
+
+    const baseBranchRef = await octokit.git.getRef({
+      owner,
+      repo,
+      ref: `heads/${base}`,
+    });
+
+    const newBranchRef = await octokit.git.createRef({
+      owner,
+      repo,
+      ref: `refs/heads/feature/add-config`,
+      sha: baseBranchRef.data.object.sha,
+    });
+
+    const currentCommit = await octokit.git.getCommit({
+      owner,
+      repo,
+      commit_sha: newBranchRef.data.object.sha,
+    });
+
+    const newCommit = await octokit.git.createCommit({
+      owner,
+      repo,
+      message: "Added config",
+      tree: currentCommit.data.tree.sha,
+      parents: [currentCommit.data.sha],
+    });
+
+    await octokit.git.updateRef({
+      owner,
+      repo,
+      ref: `heads/feature/add-config`,
+      sha: newCommit.data.sha,
+    });
+
+    await octokit.pulls.create({
+      owner,
+      repo,
+      head: "refs/heads/feature/add-config",
+      base: `refs/heads/${base}`,
+      title,
+      body
+    });
+
+    res.send("Hello World");
+  });
+
   app.on("issues.opened", async (context) => {
     var fundingPoolId = createFundingPoolId(context.payload.repository.id, context.payload.issue.number);
 
@@ -134,6 +196,10 @@ export = (app: Probot) => {
       body: `@${context.payload.pull_request.user.login}\nThe pull request was approved, you can now claim this pull request with the command _/claim <\\<your address\\>>_`
     }));
   });
+
+  // app.on("installation.created", async (context) => {
+  //   context.payload.installation.rep
+  // });
 
   commands(app, 'claim', async (context: any, command: any) => {
     if (context.payload.comment.user.id !== context.payload.issue.user.id) {
