@@ -78,7 +78,11 @@ export = (app: Probot, { getRouter }: any) => {
 
   router.use(require("express").static("public"));
 
-  router.get("/hello-world", async (_: any, res: any, _next: any) => {
+  //router.get("/form", async (_: any, res: any, _next: any) => {
+    //res.sendFile(path.join(__dirname+'/form.html'));
+  //});
+
+  router.post("/open-pull-request", async (_: any, res: any, _next: any) => {
     var octokit = await app.auth(29273534);
     var ciao = await octokit.request('GET /installation/repositories', {});
 
@@ -109,11 +113,24 @@ export = (app: Probot, { getRouter }: any) => {
       commit_sha: newBranchRef.data.object.sha,
     });
 
+    const tree =  await octokit.git.createTree({
+      owner,
+      repo,
+      tree: [
+        {
+          mode: '100644',
+          path: 'probot-2.yaml',
+          content: 'OwnerAddress: "0xD7C91D12c9Ace617eC2F2B20803dB8E166585baE"',
+        }
+      ],
+      base_tree: currentCommit.data.tree.sha,
+    });
+
     const newCommit = await octokit.git.createCommit({
       owner,
       repo,
       message: "Added config",
-      tree: currentCommit.data.tree.sha,
+      tree: tree.data.sha,
       parents: [currentCommit.data.sha],
     });
 
