@@ -3,7 +3,7 @@ import { MD5 } from "crypto-js";
 import { Contract, ethers } from "ethers";
 import { OpenSourceTokenAbi } from "./contracts/OpenSourceTokenAbi";
 import abi = require('../abis/OpenSourceToken.abi.json');
-const commands: any = require('probot-commands')
+const commands: any = require('probot-commands');
 
 var contractAddress = "0x6562f89B1B5a8E3E1Ee7338e350D6D8aCdb1ED07";
 
@@ -77,80 +77,101 @@ export = (app: Probot, { getRouter }: any) => {
   const router = getRouter("/my-app");
 
   router.use(require("express").static("public"));
+  router.use(require('body-parser').urlencoded({ extended: true }));
 
-  //router.get("/form", async (_: any, res: any, _next: any) => {
-    //res.sendFile(path.join(__dirname+'/form.html'));
-  //});
+  router.get("/form", async (req: any, res: any, _next: any) => {
+    res.send(`
+      <body>
+        <form action="/my-app/open-pull-request" method="post">
+          <input type="text" name="param-a" />
+          <input type="hidden" name="installation-id" value="${req.query['installation_id']}" />
+          <input type="submit" />
+        </form>
+      </body>
+    `);
+  });
 
-  router.post("/open-pull-request", async (_: any, res: any, _next: any) => {
-    var octokit = await app.auth(29273534);
+  router.post("/open-pull-request", async (req: any, res: any, _next: any) => {
+    var octokit = await app.auth(req.body['installation-id']);
     var ciao = await octokit.request('GET /installation/repositories', {});
 
-    console.log(JSON.stringify(ciao.data.repositories[0]));
+    var ppp = "";
+    for (var r of ciao.data.repositories) {
+      var owner = r.owner.login;
+      var repo = r.name;
+      var base = r.default_branch;
+      var title = "title";
+      var body = "body";
 
-    var owner = ciao.data.repositories[0].owner.login;
-    var repo = ciao.data.repositories[0].name;
-    var base = ciao.data.repositories[0].default_branch;
-    var title = "title";
-    var body = "body";
+      const baseBranchRef = await octokit.git.getRef({
+        owner,
+        repo,
+        ref: `heads/${base}`,
+      });
 
-    const baseBranchRef = await octokit.git.getRef({
-      owner,
-      repo,
-      ref: `heads/${base}`,
-    });
+      const newBranchRef = await octokit.git.createRef({
+        owner,
+        repo,
+        ref: `refs/heads/feature/add-config`,
+        sha: baseBranchRef.data.object.sha,
+      });
 
-    const newBranchRef = await octokit.git.createRef({
-      owner,
-      repo,
-      ref: `refs/heads/feature/add-config`,
-      sha: baseBranchRef.data.object.sha,
-    });
+      const currentCommit = await octokit.git.getCommit({
+        owner,
+        repo,
+        commit_sha: newBranchRef.data.object.sha,
+      });
 
-    const currentCommit = await octokit.git.getCommit({
-      owner,
-      repo,
-      commit_sha: newBranchRef.data.object.sha,
-    });
+      const tree =  await octokit.git.createTree({
+        owner,
+        repo,
+        tree: [
+          {
+            mode: '100644',
+            path: 'probot-2.yaml',
+            content: `OwnerAddress: "${req.body['param-a']}"`,
+          }
+        ],
+        base_tree: currentCommit.data.tree.sha,
+      });
 
-    const tree =  await octokit.git.createTree({
-      owner,
-      repo,
-      tree: [
-        {
-          mode: '100644',
-          path: 'probot-2.yaml',
-          content: 'OwnerAddress: "0xD7C91D12c9Ace617eC2F2B20803dB8E166585baE"',
-        }
-      ],
-      base_tree: currentCommit.data.tree.sha,
-    });
+      const newCommit = await octokit.git.createCommit({
+        owner,
+        repo,
+        message: "Added config",
+        tree: tree.data.sha,
+        parents: [currentCommit.data.sha],
+      });
 
-    const newCommit = await octokit.git.createCommit({
-      owner,
-      repo,
-      message: "Added config",
-      tree: tree.data.sha,
-      parents: [currentCommit.data.sha],
-    });
+      await octokit.git.updateRef({
+        owner,
+        repo,
+        ref: `heads/feature/add-config`,
+        sha: newCommit.data.sha,
+      });
 
-    await octokit.git.updateRef({
-      owner,
-      repo,
-      ref: `heads/feature/add-config`,
-      sha: newCommit.data.sha,
-    });
+      var pr = await octokit.pulls.create({
+        owner,
+        repo,
+        head: "refs/heads/feature/add-config",
+        base: `refs/heads/${base}`,
+        title,
+        body
+      });
 
-    await octokit.pulls.create({
-      owner,
-      repo,
-      head: "refs/heads/feature/add-config",
-      base: `refs/heads/${base}`,
-      title,
-      body
-    });
+      if (ciao.data.repositories.length === 1) {
+        res.redirect(pr.data.html_url);
+        break;
+      }
 
-    res.send("Hello World");
+      ppp += `<tr><td>${pr.data.html_url}</td></tr>`;
+    }
+
+    res.send(`
+      <table border="1">
+        ${ppp}
+      </table>
+    `);
   });
 
   app.on("issues.opened", async (context) => {

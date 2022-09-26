@@ -136,4 +136,4 @@ default_permissions:
 # Default: true
 # public: false
 
-setup_url: "https://google.com/"
+setup_url: "http://localhost:3000/my-app/form"
