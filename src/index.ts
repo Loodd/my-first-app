@@ -122,7 +122,7 @@ export = (app: Probot, { getRouter }: any) => {
         tree: [
           {
             mode: '100644',
-            path: 'probot-2.yaml',
+            path: 'probot.yaml',
             content: `OwnerAddress: "${req.body['owner-address']}"`,
           }
         ],
