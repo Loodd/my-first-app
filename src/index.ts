@@ -2,6 +2,7 @@ import { Probot } from "probot";
 import { MD5 } from "crypto-js";
 import { Contract, ethers } from "ethers";
 import { OpenSourceTokenAbi } from "./contracts/OpenSourceTokenAbi";
+var cors = require('cors');
 import abi = require('../abis/OpenSourceToken.abi.json');
 const commands: any = require('probot-commands');
 
@@ -67,8 +68,8 @@ var createBodyFromIssuesMapping = async (context: any, payload: any, ownerAddres
 }
 
 var createSvg = (fundingPoolId: string, url: string, ownerAddress: string) => {
-  var urlSvg = "http://80.180.103.134:3001";
-  var urlFunder = `http://80.180.103.134:4200/web3/funding/${ownerAddress}/${fundingPoolId}?ref=${url}`;
+  var urlSvg = "http://82.54.204.179:3001";
+  var urlFunder = `http://82.54.204.179:4200/funding-pools/funding/${ownerAddress}/${fundingPoolId}?ref=${url}`;
 
   return `[![alt text](${urlSvg}/?owner=${ownerAddress}&fundingPoolId=${fundingPoolId})](${urlFunder})`;
 }
@@ -77,26 +78,19 @@ export = (app: Probot, { getRouter }: any) => {
   const router = getRouter("/my-app");
 
   router.use(require("express").static("public"));
-  router.use(require('body-parser').urlencoded({ extended: true }));
-
-  router.get("/form", async (req: any, res: any, _next: any) => {
-    res.send(`
-      <body>
-        <form action="/my-app/open-pull-request" method="post">
-          <input type="text" name="param-a" />
-          <input type="hidden" name="installation-id" value="${req.query['installation_id']}" />
-          <input type="submit" />
-        </form>
-      </body>
-    `);
-  });
+  router.use(require('body-parser').json());
+  router.use(cors());
 
   router.post("/open-pull-request", async (req: any, res: any, _next: any) => {
-    var octokit = await app.auth(req.body['installation-id']);
-    var ciao = await octokit.request('GET /installation/repositories', {});
+    console.log(req.body['installation-id']);
 
-    var ppp = "";
-    for (var r of ciao.data.repositories) {
+    var octokit = await app.auth(req.body['installation-id']);
+
+    var installationRepositories = await octokit.request('GET /installation/repositories', {});
+
+    var repositories = [];
+    
+    for (var r of installationRepositories.data.repositories) {
       var owner = r.owner.login;
       var repo = r.name;
       var base = r.default_branch;
@@ -129,7 +123,7 @@ export = (app: Probot, { getRouter }: any) => {
           {
             mode: '100644',
             path: 'probot-2.yaml',
-            content: `OwnerAddress: "${req.body['param-a']}"`,
+            content: `OwnerAddress: "${req.body['owner-address']}"`,
           }
         ],
         base_tree: currentCommit.data.tree.sha,
@@ -159,19 +153,13 @@ export = (app: Probot, { getRouter }: any) => {
         body
       });
 
-      if (ciao.data.repositories.length === 1) {
-        res.redirect(pr.data.html_url);
-        break;
-      }
-
-      ppp += `<tr><td>${pr.data.html_url}</td></tr>`;
+      repositories.push({
+        htmlUrl: pr.data.html_url
+      });
     }
 
-    res.send(`
-      <table border="1">
-        ${ppp}
-      </table>
-    `);
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ repositories: repositories }));
   });
 
   app.on("issues.opened", async (context) => {
