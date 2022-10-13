@@ -82,8 +82,6 @@ export = (app: Probot, { getRouter }: any) => {
   router.use(cors());
 
   router.post("/open-pull-request", async (req: any, res: any, _next: any) => {
-    console.log(req.body['installation-id']);
-
     var octokit = await app.auth(req.body['installation-id']);
 
     var installationRepositories = await octokit.request('GET /installation/repositories', {});
@@ -122,7 +120,7 @@ export = (app: Probot, { getRouter }: any) => {
         tree: [
           {
             mode: '100644',
-            path: 'probot.yaml',
+            path: '.github/probot.yaml',
             content: `OwnerAddress: "${req.body['owner-address']}"`,
           }
         ],
@@ -167,6 +165,9 @@ export = (app: Probot, { getRouter }: any) => {
 
     var config = await context.config("probot.yaml") as any;
 
+    if (!config)
+      return;
+
     const issueComment = context.issue({
       body: createSvg(fundingPoolId, context.payload.issue.html_url, config.OwnerAddress)
     });
@@ -176,6 +177,9 @@ export = (app: Probot, { getRouter }: any) => {
 
   app.on("pull_request.opened", async (context) => {
     var config = await context.config("probot.yaml") as any;
+
+    if (!config)
+      return;
 
     var body = await createBodyFromIssuesMapping(context, context.payload.pull_request, config.OwnerAddress);
 
@@ -191,6 +195,9 @@ export = (app: Probot, { getRouter }: any) => {
       return;
 
     var config = await context.config("probot.yaml") as any;
+
+    if (!config)
+      return;
 
     var body = await createBodyFromIssuesMapping(context, context.payload.pull_request, config.OwnerAddress);
 
@@ -259,6 +266,9 @@ export = (app: Probot, { getRouter }: any) => {
     const labels = command.arguments.split(/, */);
 
     var config = await context.config("probot.yaml") as any;
+
+    if (!config)
+      return;
 
     for (var issue of issuesMapping) {
       var q = `{
